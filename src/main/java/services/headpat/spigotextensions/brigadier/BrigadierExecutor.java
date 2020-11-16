@@ -21,31 +21,28 @@ import java.util.stream.Collectors;
  * Creates autocomplete suggestions and onCommand handling automatically using {@link LiteralArgumentBuilder}.
  */
 public class BrigadierExecutor implements TabExecutor {
-	protected CommandDispatcher<CommandSender> commandDispatcher;
-
 	/**
 	 * Returning 1 from an executor in the LiteralArgumentBuilder will act as true and 0 and below will act as false.
 	 *
 	 * @param argumentBuilder The literal argument builder to create the command from.
 	 */
 	public BrigadierExecutor(@NotNull Supplier<LiteralArgumentBuilder<CommandSender>> argumentBuilder) {
-		this.commandDispatcher = new CommandDispatcher<>();
-		this.commandDispatcher.register(argumentBuilder.get());
+		Brigadier.getCommandDispatcher().register(argumentBuilder.get());
 	}
 
 	@Override
 	public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
 		try {
-			int result = this.commandDispatcher.execute(getCommandString(alias, args), sender);
+			int result = Brigadier.getCommandDispatcher().execute(getCommandString(alias, args), sender);
 			if (result <= 0) {
-				sendUsageMessage(sender, this.commandDispatcher);
+				sendUsageMessage(sender, alias, Brigadier.getCommandDispatcher());
 				return true;
 			}
 		} catch (CommandSyntaxException e) {
 			if (e.getMessage() != null)
 				sender.sendMessage(ChatColor.RED + e.getMessage());
 
-			sendUsageMessage(sender, this.commandDispatcher);
+			sendUsageMessage(sender, alias, Brigadier.getCommandDispatcher());
 			return true;
 		}
 		return true;
@@ -54,13 +51,13 @@ public class BrigadierExecutor implements TabExecutor {
 	@Override
 	public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
 		String commandString = getCommandString(alias, args);
-		Suggestions suggestions = this.commandDispatcher.getCompletionSuggestions(this.commandDispatcher.parse(commandString, sender)).join();
+		Suggestions suggestions = Brigadier.getCommandDispatcher().getCompletionSuggestions(Brigadier.getCommandDispatcher().parse(commandString, sender)).join();
 		return suggestions.getList().stream().map(Suggestion::getText).collect(Collectors.toList());
 	}
 
-	private static void sendUsageMessage(@NotNull CommandSender sender, @NotNull CommandDispatcher<CommandSender> commandDispatcher) {
+	private static void sendUsageMessage(@NotNull CommandSender sender, String alias, @NotNull CommandDispatcher<CommandSender> commandDispatcher) {
 		sender.sendMessage(ChatColor.RED + "Usages:");
-		for (String s : commandDispatcher.getAllUsage(commandDispatcher.getRoot(), sender, true))
+		for (String s : commandDispatcher.getAllUsage(commandDispatcher.getRoot().getChild(alias), sender, true))
 			sender.sendMessage(ChatColor.RED + "/" + s);
 	}
 
